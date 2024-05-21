@@ -12,7 +12,7 @@ from flybirds.core.exceptions import FlybirdVerifyException, \
     FlybirdsVerifyEleException
 from flybirds.core.global_context import GlobalContext as g_Context
 from flybirds.utils import language_helper as lan
-from flybirds.utils.dsl_helper import handle_str, params_to_dic
+from flybirds.utils.dsl_helper import handle_str, params_to_dic, get_input_value
 import re
 
 def direct_left(x, y, diff):
@@ -197,7 +197,7 @@ class Element:
     def ele_input_text(self, context, param_1, param_2):
         locator, timeout = self.get_ele_locator(param_1)
         # locator.click(timeout=timeout)
-        locator.fill(param_2, timeout=timeout)
+        locator.fill(get_input_value(param_2), timeout=timeout)
         return self.page.wait_for_timeout(100)
 
     def clear_and_input(self, context, param_1, param_2):

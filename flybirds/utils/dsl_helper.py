@@ -3,6 +3,7 @@
 dsl helper
 """
 import base64
+import os
 import re
 from functools import wraps
 
@@ -177,6 +178,10 @@ def get_use_define_param(context, param_name):
         user_data[param_name] = str(base64.b64decode(value), "utf-8")
     return user_data
 
+def get_input_value(param: str):
+    if os.getenv(param) is not None:
+        return os.getenv(param)
+    return param
 
 def ele_wrap(func):
     @wraps(func)
