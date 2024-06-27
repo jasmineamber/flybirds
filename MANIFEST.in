@@ -6,3 +6,4 @@ include flybirds/report/node_report/*/*/*/*.*
 include flybirds/report/node_report/*/*/*/*/*.*
 include flybirds/report/node_report/*/*/*/*/*/*.*
 include flybirds/report/node_report/*/*/*/*/*/*/*.*
+include requirements.txt

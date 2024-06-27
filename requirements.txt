@@ -1,4 +1,4 @@
-playwright==1.33.0
+playwright>=1.33.0
 pocoui>=1.0.87
 airtest>=1.2.10
 setuptools>=47.1.0
@@ -19,3 +19,4 @@ xmltodict==0.13.0
 requests==2.31.0
 pydantic==1.9.1
 baseImage>=2.1.1
+nest_asyncio==1.6.0
