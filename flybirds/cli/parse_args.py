@@ -32,7 +32,7 @@ def check_workspace_args(feature_path):
 
 
 def parse_args(
-        wip, feature_path, tag, report_format, report_path, define, rerun, es,
+        feature_path, tag, report_format, report_path, define, rerun, es,
         to_html, run_at, processes
 ):
     """
@@ -78,10 +78,7 @@ def parse_args(
     log.info("report path: {}".format(report_path))
 
     # args cmd_array
-    if wip:
-        cmd_array = ["behave", "-w", feature_path, report_format, report_path]
-    else:
-        cmd_array = ["behave", feature_path, report_format, report_path]
+    cmd_array = ["behave", feature_path, report_format, report_path]
 
     # process es
     if not (es is None):

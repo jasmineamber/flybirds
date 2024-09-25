@@ -19,13 +19,6 @@ app = typer.Typer(
 
 @app.command("run")
 def runner(
-        wip: bool = typer.Option(
-            False,
-            "--wip",
-            "-W",
-            help="Only run scenarios tagged with @wip."
-                 "Additionally: use the “plain” formatter, do not capture stdout or logging output and stop at the first failure."
-        ),
         feature_path: str = typer.Option(
             "features",
             "--path",
@@ -81,7 +74,7 @@ def runner(
     """
     # process args
     run_args = parse_args(
-        wip, feature_path, tag, report_format, report_path, define, rerun, es,
+        feature_path, tag, report_format, report_path, define, rerun, es,
         to_html, run_at, processes
     )
     log.info("============last run_args: {}".format(str(run_args)))
