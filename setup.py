@@ -1,11 +1,3 @@
-"""
-Author       : 815531
-Date         : 2024-04-15 09:18:54
-LastEditors  : 815531
-LastEditTime : 2024-09-03 14:46:45
-FilePath     : /setup.py
-Description  : 
-"""
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -54,7 +46,7 @@ req = parse_requirements("requirements.txt")
 
 setup(
     name="flybirds",
-    version="0.6.77.3",
+    version="0.6.77.1",
     author="trip_flight",
     author_email="flybirds_support@trip.com",
     description="BDD-driven natural language automated testing framework",

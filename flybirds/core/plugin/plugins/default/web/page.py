@@ -466,8 +466,6 @@ def mock_rules(url: str, request_mock_key_value: list):
 
 def handle_popup(page):
     log.info(f"============open new page============, url: {page.url}")
-    gr.get_value("plugin_page").page = page
-    gr.get_value("plugin_ele").page = page
     if gr.get_value("web_context_hook") is not None:
         web_context_hook = gr.get_value("web_context_hook")
         if hasattr(web_context_hook, "handle_popup"):
