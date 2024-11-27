@@ -309,6 +309,8 @@ class FlowBehave:
 
             self.fail_rerun = return_value(flow_config.get("failRerun", False),
                                            False)
+            self.fail_rerun_feature = return_value(flow_config.get("failRerunFeature", False),
+                                           False)
             self.max_fail_rerun_count = return_value(flow_config.get(
                 "maxFailRerunCount", 1.0), 1.0)
 

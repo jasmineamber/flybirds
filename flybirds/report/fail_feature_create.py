@@ -98,6 +98,7 @@ def rerun_launch(context, is_parallel):
     else:
         need_rerun = need_rerun_args
     if need_rerun:
+        need_rerun_feature = flow_behave_config.fail_rerun_feature
         max_retry_count = flow_behave_config.max_retry_count
         run_count = 1
         rerun_dir_path = report_dir_path
@@ -106,6 +107,7 @@ def rerun_launch(context, is_parallel):
             report_dir_path,
             rerun_dir_path,
             run_count,
+            need_rerun_feature,
             max_fail_rerun_count,
         )
         # The number of failures is not higher than the limited value and
@@ -128,6 +130,7 @@ def rerun_launch(context, is_parallel):
                             rerun_report_dir_path,
                             rerun_dir_path,
                             run_count,
+                            need_rerun_feature,
                             max_fail_rerun_count,
                         )
                     rerun_feature_path = (
@@ -198,7 +201,7 @@ def rerun_launch(context, is_parallel):
                                      is_parallel)
 
 
-def create_rerun(report_dir, rerun_dir, run_count, max_fail_count=1.0):
+def create_rerun(report_dir, rerun_dir, run_count, need_rerun_feature, max_fail_count=1.0):
     """
     Feature to re-run after creation failure
     Some information after failure (such as screenshots) falls into the file
@@ -226,7 +229,8 @@ def create_rerun(report_dir, rerun_dir, run_count, max_fail_count=1.0):
                            fail_count,
                            exist_scenario_name, fail_scenario_static,
                            run_count,
-                           rerun_root_dir)
+                           rerun_root_dir,
+                           need_rerun_feature)
     if sum_count <= 0 or fail_count <= 0:
         log.info(
             "Feature sum_count rerun after creation"
@@ -260,7 +264,7 @@ def create_rerun(report_dir, rerun_dir, run_count, max_fail_count=1.0):
 
 def process_loop_block(report_dir, rerun_feature_index, sum_count, fail_count,
                        exist_scenario_name, fail_scenario_static, run_count,
-                       rerun_root_dir):
+                       rerun_root_dir, need_rerun_feature):
     """
     iterate through all json in the report_dir
     1.find  the cases that need to be rerun and write them to the feature file
@@ -300,7 +304,7 @@ def process_loop_block(report_dir, rerun_feature_index, sum_count, fail_count,
                                 if scenario["type"] == "background":
                                     continue
                                 sum_count += 1
-                                if scenario["status"] == "failed":
+                                if scenario["status"] == "failed" or (feature["status"] == "failed" and need_rerun_feature):
                                     fail_count += 1
                                     if isinstance(scenario["tags"], list):
                                         cur_tags = ""
