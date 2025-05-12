@@ -18,6 +18,7 @@ from flybirds.core.plugin.plugins.default.step.input \
 from flybirds.core.plugin.plugins.default.step.position import (
     position_not_change
 )
+from flybirds.core.global_context import GlobalContext as g_Context
 
 
 class AppBaseStep:
@@ -37,6 +38,10 @@ class AppBaseStep:
     def img_not_exist(self, context, param):
         step_verify.img_not_exist(context, param)
 
+    def click_ele_point(self, context, selector, x, y):
+        # step_click.click_ele(context, selector)
+        step_click.click_ele_position(context, selector, x, y)
+
     def connect_device(self, context, param):
         step_app.connect_device(context, param)
 
@@ -45,6 +50,9 @@ class AppBaseStep:
 
     def restart_app(self, context):
         step_app.restart_app(context)
+
+    def press_home(self, context):
+        step_app.return_home(context)
 
     def stop_app(self, context):
         step_app.stop_app(context)
@@ -57,6 +65,9 @@ class AppBaseStep:
 
     def click_ele(self, context, selector):
         step_click.click_ele(context, selector)
+
+    def click_exist_param(self, context, selector):
+        step_click.click_exist_param(context, selector)
 
     def click_text(self, context, selector):
         step_click.click_text(context, selector)
@@ -98,7 +109,8 @@ class AppBaseStep:
         step_adjust.swipe_to_ele(context, p_selector, param2, c_selector, True)
 
     def full_screen_swipe_to_ele_aaa(self, context, param1, selector):
-        step_adjust.full_screen_swipe_to_ele_aaa(context, param1, selector)
+        # step_adjust.full_screen_swipe_to_ele_aaa(context, param1, selector)
+        step_swipe.full_screen_swipe_new(context, param1, selector)
 
     def full_screen_swipe_to_ocr_txt(self, context, param1, selector):
         step_adjust.full_screen_swipe_to_ocr_txt(context, param1, selector)
@@ -110,9 +122,17 @@ class AppBaseStep:
         position_not_change(context, selector, param2)
 
     def start_screen_record_timeout(self, context, param):
+        if g_Context.get_global_cache("started_record") is not None and g_Context.get_global_cache(
+                "started_record") is True:
+            return
+        g_Context.set_global_cache("started_record", True)
         step_record.start_screen_record_timeout(context, param)
 
     def start_screen_record(self, context):
+        if g_Context.get_global_cache("started_record") is not None and g_Context.get_global_cache(
+                "started_record") is True:
+            return
+        g_Context.set_global_cache("started_record", True)
         step_record.start_screen_record(context)
 
     def stop_screen_record(self, context):
@@ -123,6 +143,15 @@ class AppBaseStep:
 
     def full_screen_swipe(self, context, param1, param2):
         step_swipe.full_screen_swipe(context, param1, param2)
+
+    def full_screen_swipe_new(self, context, param, selector):
+        step_swipe.full_screen_swipe_new(context, param, selector)
+
+    def full_screen_swipe_click(self, context, selector, direction):
+        step_swipe.full_screen_swipe_click(context, selector, direction)
+
+    def full_screen_swipe_input(self, context, selector, param, direction):
+        step_swipe.full_screen_swipe_input(context, selector, param, direction)
 
     def wait_text_exist(self, context, selector):
         step_verify.wait_text_exist(context, selector)

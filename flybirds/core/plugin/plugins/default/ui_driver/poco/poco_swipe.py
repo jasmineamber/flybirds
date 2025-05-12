@@ -72,7 +72,9 @@ def air_bdd_ele_swipe(
     poco_object = pm.create_poco_object_by_dsl(
         poco, container_dsl_str, optional
     )
+    # 获取目标元素的位置和大小
     target_position = poco_object.get_position()
+
     target_size = poco_object.get_size()
     if start_point[0] > 1:
         start_point[0] = (
@@ -216,6 +218,7 @@ def air_bdd_percent_point_swipe(poco, start_point, end_point, duration=None):
     :param duration:
     :return:
     """
+    log.info("swipe from {} to {} and duration {}".format(start_point, end_point, duration))
     if duration is None:
         poco.swipe(start_point, end_point)
     else:

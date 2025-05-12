@@ -2,7 +2,9 @@
 """
 when behave run scenario will trigger this
 """
+import os
 import traceback
+from urllib.parse import urlparse
 
 import flybirds.core.global_resource as gr
 import flybirds.utils.language_helper as lge
@@ -23,7 +25,11 @@ def scenario_init(context, scenario):
     # take effect in this scenario
     log.info('[scenario_init] start!')
     GlobalContext.set_global_cache("verifyStepCount", 0)
+    gr.set_value("mock_request_match_list", [])
+    gr.set_value("current_page_dialog_action", None)
     scenario.description.append("initialization description_")
+    gr.set_value('network_cache_map', {})
+    gr.set_value("operate_record", {})
     # Initialize the sequence of steps to be executed
     # which is required for subsequent associated screenshots
     context.cur_step_index = 0
@@ -72,12 +78,13 @@ def scenario_fail(context, scenario):
         f"scenario:{scenario.name} failed to run"
     )
     need_copy_record = 0
-
+    gr.set_value("scenario_status", False)
     # the scene fails to output a log and take a screenshot
     for step in scenario.all_steps:
         if step.name.strip().startswith(
                 lge.parse_glb_str("start record", scenario.feature.language)
-        ):
+        ) or (GlobalContext.get_global_cache("started_record") is not None and GlobalContext.get_global_cache(
+            "started_record") is True):
             need_copy_record += 1
         elif step.name.strip().startswith(
                 lge.parse_glb_str("stop record", scenario.feature.language)
@@ -141,6 +148,7 @@ def scenario_success(context, scenario):
     on_scenario_success = launch_helper.get_hook_file(
         "on_scenario_success"
     )
+    gr.set_value("scenario_status", True)
     if on_scenario_success is not None:
         on_scenario_success(context, scenario)
     if context.scenario_screen_record:
@@ -198,6 +206,57 @@ class OnBefore:  # pylint: disable=too-few-public-methods
             before_scenario_extend(context, scenario)
 
 
+def check_url_in_white_list(context, url):
+    """
+    check if url in white list
+    """
+    white_list = [".js", ".css", ".html", ".htm", ".png", ".jpg", ".avi"]
+    try:
+        if white_list.index(url.lower().strip()) >= 0:
+            return True
+    except:
+        return False
+    return False
+
+
+def format_error(context, scenario, formatter):
+    try:
+        if scenario.status == "failed" and GlobalContext.get_global_cache("stepErrorInfo") is not None:
+            formatter.current_feature_element["stepErrorInfo"] = GlobalContext.get_global_cache(
+                "stepErrorInfo")
+            if gr.get_value("mock_request_match_list") is not None and len(
+                    gr.get_value("mock_request_match_list")) > 0:
+                formatter.current_feature_element["stepErrorInfo"]["missedMockRequest"] = []
+                for test_url in gr.get_value("mock_request_match_list"):
+                    test_url_parse = urlparse(test_url)
+                    file_path = test_url_parse.path
+                    file_name = os.path.basename(test_url_parse.path)
+                    _, file_suffix = os.path.splitext(file_name)
+                    if check_url_in_white_list(context, file_suffix):
+                        continue
+                    formatter.current_feature_element["stepErrorInfo"]["missedMockRequest"].append(test_url)
+            request_mock_key_value_list = GlobalContext.get_global_cache("request_mock_key_value")
+            request_mock_request_key_value_list = GlobalContext.get_global_cache(
+                "request_mock_request_key_value")
+            formatter.current_feature_element["stepErrorInfo"]["missedMockStep"] = []
+            if request_mock_key_value_list is not None and len(request_mock_key_value_list) > 0:
+                for request_mock_key_value in request_mock_key_value_list:
+                    if request_mock_key_value is not None and request_mock_key_value.get(
+                            "max") is not None and \
+                            request_mock_key_value["max"] > 0:
+                        formatter.current_feature_element["stepErrorInfo"]["missedMockStep"].append(
+                            request_mock_key_value.get("mockStep"))
+            if request_mock_request_key_value_list is not None and len(
+                    request_mock_request_key_value_list) > 0:
+                for request_mock_request_key_value in request_mock_request_key_value_list:
+                    if request_mock_request_key_value is not None and request_mock_request_key_value.get(
+                            "max") is not None and request_mock_request_key_value["max"] > 0:
+                        formatter.current_feature_element["stepErrorInfo"]["missedMockStep"].append(
+                            request_mock_request_key_value.get("mockStep"))
+    except:
+        log.info("failed to format error")
+
+
 class OnAfter:  # pylint: disable=too-few-public-methods
     """
     scenario after event
@@ -221,10 +280,8 @@ class OnAfter:  # pylint: disable=too-few-public-methods
                 formatter = context._runner.formatters[0]
                 if formatter is not None and formatter.current_feature_element is not None:
                     formatter.current_feature_element["verifyCount"] = GlobalContext.get_global_cache("verifyStepCount")
-            log.info('[scenario_OnAfter] start!')
-            if scenario.status == "failed":
-                scenario_fail(context, scenario)
-            else:
+                    format_error(context, scenario, formatter)
+            if scenario.status != "failed":
                 scenario_success(context, scenario)
 
             cur_platform = GlobalContext.platform
@@ -248,6 +305,59 @@ class OnAfter:  # pylint: disable=too-few-public-methods
             pass
 
 
+class AfterScenarioFailScreenShoot:
+    """
+    scenario after event
+    """
+
+    name = "AfterScenarioFail"
+    order = 0
+
+    @staticmethod
+    def can(context, scenario):
+        if scenario.status == "failed":
+            return True
+        return False
+
+    @staticmethod
+    def run(context, scenario):
+        """
+        exe scenario after
+        """
+        try:
+            log.info('[scenario_OnAfter] start!')
+            if scenario.status == "failed":
+                scenario_fail(context, scenario)
+        except Exception as e:
+            traceback.print_exc()
+            log.info(f"failed to run scenario after, error: {str(e)}")
+
+
+class OnAfterClean:
+    name = "OnAfterClean"
+    order = 10000
+
+    @staticmethod
+    def can(context, scenario):
+        return True
+
+    @staticmethod
+    def run(context, scenario):
+        """
+        exe scenario after
+        """
+        try:
+            GlobalContext.set_global_cache("stepErrorInfo", None)
+            GlobalContext.set_global_cache("flybirds_page_info", None)
+            GlobalContext.set_global_cache("stepErrorInfo", None)
+            gr.set_value("mock_request_match_list", None)
+            GlobalContext.set_global_cache("started_record", None)
+        except:
+            pass
+
+
 # add scenario event to global processor
 var = GlobalContext.join("before_scenario_processor", OnBefore, 1)
 var1 = GlobalContext.join("after_scenario_processor", OnAfter, 1)
+var3 = GlobalContext.join("after_scenario_processor", OnAfterClean, 1)
+var4 = GlobalContext.join("after_scenario_processor", AfterScenarioFailScreenShoot, 1)

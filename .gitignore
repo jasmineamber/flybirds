@@ -13,7 +13,7 @@ report
 .DS_Store
 /venv/
 multiprocessing_features.log
-
+.history
 config/
 features/
 pscript/

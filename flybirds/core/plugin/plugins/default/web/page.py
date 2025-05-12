@@ -4,6 +4,7 @@
 # @File : page.py
 # @desc : web page implement
 import json
+import random
 import time
 import os
 import re
@@ -17,7 +18,7 @@ import flybirds.utils.verify_helper as verify_helper
 from flybirds.core.plugin.plugins.default.web.interception import \
     get_case_response_body
 from flybirds.utils import dsl_helper
-from flybirds.utils.dsl_helper import is_number
+from flybirds.utils.dsl_helper import is_number, params_to_dic, handle_str
 from flybirds.utils import file_helper
 from flybirds.core.exceptions import FlybirdsException
 import urllib.parse
@@ -62,9 +63,10 @@ class Page:
                 page.route("**/*", handle_route)
             # request listening events
             context.on("request", handle_request)
-        context.on("console", handle_page_error)
+        # context.on("console", handle_page_error)
         context.on("page", handle_popup)
-
+        context.on("response", handle_request_finished)
+        page.on("dialog", lambda dialog: handle_dialog(dialog))
         ele_wait_time = gr.get_frame_config_value("wait_ele_timeout", 30)
         page_render_timeout = gr.get_frame_config_value("page_render_timeout",
                                                         30)
@@ -74,6 +76,7 @@ class Page:
 
     @staticmethod
     def new_browser_context(dic=None):
+        log.info("new_browser_context")
         browser = gr.get_value('browser')
         operation_module = gr.get_value("projectScript").custom_operation
 
@@ -100,8 +103,21 @@ class Page:
         if gr.get_value("debug", False):
             launch_config["record_video_dir"] = None
 
+        exec_id = random.randint(100000, 999999)
+        file_name = f"case_file_{time.strftime('%Y%m%d%H%M%S')}_{exec_id}"
+        userdata = GlobalContext.get_global_cache("userdata")
+        screen_shot_dir = userdata.get("screenShotDir")
+        har_path = os.path.join(screen_shot_dir, file_name + ".har")
+        trace_path = os.path.join(screen_shot_dir, file_name + "trace.zip")
+
+        if gr.get_web_info_value("browserExit") is True and gr.get_web_info_value("exportWebTrace") is True:
+            GlobalContext.set_global_cache('export_har_path', har_path)
+            launch_config["record_har_path"] = har_path
+            log.info(f"record har path: {har_path}")
+
         if gr.get_web_info_value("by_pass", None) is not None:
             launch_params.get("proxy").__setitem__("bypass", gr.get_web_info_value("by_pass", None))
+            log.info(f"this is by pass: {gr.get_web_info_value('by_pass', None)}")
             if optional_config is not None:
                 launch_config = {
                     **launch_config,
@@ -120,6 +136,11 @@ class Page:
             }
 
         context = browser.new_context(**launch_config)
+
+        if gr.get_web_info_value("exportWebTrace") is True:
+            GlobalContext.set_global_cache('export_web_trace_path', trace_path)
+            # context.tracing.start(screenshots=True, snapshots=True)
+            log.info(f"record trace path: {trace_path}")
         # add user custom cookies into browser context
         user_cookie = GlobalContext.get_global_cache("cookies")
         if user_cookie is not None:
@@ -285,6 +306,15 @@ class Page:
         operation_module = gr.get_value("projectScript").custom_operation
         page_url = None
         user_header = GlobalContext.get_global_cache("user_header")
+
+        try:
+            if gr.get_web_info_value("exportWebTrace") is True:
+                export_web_trace_path = GlobalContext.get_global_cache('export_web_trace_path')
+                self.page.context.tracing.start(screenshots=True, snapshots=True)
+                log.info(f"flybirds exportWebTrace: {export_web_trace_path}")
+        except Exception as e:
+            log.error(f"start web trace error: {e}")
+
         if user_header:
             self.page.set_extra_http_headers(user_header)
             log.info(f'user_header: {user_header}')
@@ -305,12 +335,18 @@ class Page:
         param_dict = dsl_helper.params_to_dic(param, "urlKey")
         url_key = param_dict["urlKey"]
         schema_url_value = gr.get_page_schema_url(url_key)
-
+        if gr.get_web_info_value("pageLoadTimeout") is not None:
+            self.page.goto(schema_url_value, timeout=float(gr.get_web_info_value("pageLoadTimeout") * 1000))
+            return
         if "timeout" in param_dict.keys():
             self.page.goto(schema_url_value, timeout=float(param_dict["timeout"]) * 1000)
             return
+        try:
+            self.page.goto(schema_url_value)
+        except Exception as e:
+            log.error(f'page goto error{e},try again')
+            self.page.goto(schema_url_value)
 
-        self.page.goto(schema_url_value)
 
     def set_web_page_size(self, context, width, height):
         self.page.set_viewport_size({"width": int(width), "height": int(height)})
@@ -337,6 +373,26 @@ class Page:
             target_url = schema_url
         verify_helper.text_equal(target_url, cur_url)
 
+    def add_header(self, context, name, value):
+        param_temp = handle_str(value)
+        param_dict = params_to_dic(param_temp)
+        selector_str = param_dict["selector"]
+
+        if "dealMethod" in param_dict.keys():
+            deal_method = param_dict["dealMethod"]
+            params_deal_module = gr.get_value("projectScript").params_deal
+            deal_params = getattr(params_deal_module, deal_method)
+            value = deal_params(selector_str)
+        headers = {}
+        if GlobalContext.get_global_cache("user_header") is not None:
+            headers = GlobalContext.get_global_cache("user_header")
+        if headers is None:
+            headers = {name: value}
+        else:
+            headers[name] = value
+        self.page.set_extra_http_headers(headers)
+        log.info(f'add header: {headers}')
+
     @staticmethod
     def add_cookies(name, value, url):
         if GlobalContext.get_global_cache("step_cookies") is None:
@@ -357,12 +413,51 @@ class Page:
         log.info(f"get cookie success: {cookies}")
         return cookies
 
-    @staticmethod
+    def add_local_storage(self, context, name, value):
+        param_temp = handle_str(value)
+        param_dict = params_to_dic(param_temp)
+        selector_str = param_dict["selector"]
+
+        if "dealMethod" in param_dict.keys():
+            deal_method = param_dict["dealMethod"]
+            params_deal_module = gr.get_value("projectScript").params_deal
+            deal_params = getattr(params_deal_module, deal_method)
+            value = deal_params(selector_str)
+
+        local_storage = [{'key': name, 'value': value}]
+        self.page.add_init_script("""(storage => {
+                                if(window && window.localStorage){
+                                      for (const [index, item] of Object.entries(storage)) {
+                                           window.localStorage.setItem(item["key"], item["value"])
+                                      }
+                                   }
+                                })(""" + str(json.dumps(local_storage, ensure_ascii=False)) + ")")
+
     def get_local_storage(context):
         context = gr.get_value("browser_context")
         local_storage = context.storage_state()
         log.info(f"get local storage success: {local_storage['origins']}")
         return local_storage['origins']
+
+    def add_session_storage(self, context, name, value):
+        param_temp = handle_str(value)
+        param_dict = params_to_dic(param_temp)
+        selector_str = param_dict["selector"]
+
+        if "dealMethod" in param_dict.keys():
+            deal_method = param_dict["dealMethod"]
+            params_deal_module = gr.get_value("projectScript").params_deal
+            deal_params = getattr(params_deal_module, deal_method)
+            value = deal_params(selector_str)
+
+        session_storage = [{'key': name, 'value': value}]
+        self.page.add_init_script("""(storage => {
+                                 if(window && window.sessionStorage){
+                                      for (const [index, item] of Object.entries(storage)) {
+                                            window.sessionStorage.setItem(item["key"], item["value"])
+                                        }
+                                      }
+                                 })(""" + str(json.dumps(session_storage, ensure_ascii=False)) + ")")
 
     def get_session_storage(self, context):
         session_storage = self.page.evaluate("() => JSON.stringify(sessionStorage)")
@@ -383,10 +478,10 @@ def handle_page_error(msg):
 
 
 def handle_request(request):
+    network_key = uuid.uuid4()
+    network_key = f"{network_key}_{time.time_ns()}"
+    setattr(request, "network_key", network_key)
     if gr.get_value("network_collect") is not None:
-        network_key = uuid.uuid4()
-        network_key = f"{network_key}_{time.time_ns()}"
-        setattr(request, "network_key", network_key)
         gr.get_value("network_collect")[network_key] = {
             "key": network_key,
             "url": request.url,
@@ -399,19 +494,27 @@ def handle_request(request):
     try:
         post_data = request.post_data
     except Exception as ex:
-        log.info("try to get post data from request")
+        log.error(f"try to get post data from request failed {ex}")
+        return
     operation = get_operation(parsed_uri, post_data)
+    response_name = get_response_name(parsed_uri, post_data)
     if operation is not None and len(operation.strip()) > 0:
         interception_request = gr.get_value('interceptionRequest')
         request_body = interception_request.get(operation)
         # 记录页面请求
         operate_record = gr.get_value('operate_record')
-        operate_record[operation] = {
+        request_info = {
             'method': request.method,
-            'postData': request.post_data,
+            'data': request.post_data,
             'url': request.url,
             'updateTimeStamp': int(round(time.time() * 1000))
         }
+        operate_record[operation] = request_info
+        if request.resource_type == 'xhr' or request.resource_type == 'fetch':
+            response_info = {}
+            operate_record[response_name] = response_info
+            gr.get_value('network_cache_map', {})[f"{operation}_{network_key}"] = {"request": request_info,
+                                                                                   "response": response_info}
         gr.set_value("operate_record", operate_record)
         if request_body is not None:
             log.info(
@@ -558,6 +661,8 @@ def handle_route(route):
             if route.request.resource_type == 'xhr' or route.request.resource_type == 'fetch':
                 mock_rule_request = mock_rules_req_body(route.request.url, request_mock_request_key_value,
                                                         route.request.post_data_json)
+                if mock_rule_request is None and gr.get_value("mock_request_match_list") is not None:
+                    gr.get_value("mock_request_match_list").append(route.request.url)
             if mock_rule_request is not None:
                 log.info(
                     f"url:{route.request.url}===== match request mock url:{mock_rule_request.get('key')} and mock key :{mock_rule_request.get('requestPathes')} mock case "
@@ -569,8 +674,20 @@ def handle_route(route):
                             "status") is not None:
                         mock_body_request = mock_body_request.get("flybirdsMockResponse")
                         mock_status = mock_body_request.get("status", 200)
+
                     if not isinstance(mock_body_request, str):
                         mock_body_request = json.dumps(mock_body_request)
+
+                    if route.request.headers.get(
+                            'accept') is not None and 'text/event-stream' == route.request.headers.get(
+                        'accept'):
+                        route.fulfill(
+                            status=mock_status,
+                            content_type="text/event-stream;charset=UTF-8",
+                            headers=route.request.headers,
+                            body=bytes(mock_body_request, encoding="utf8"))
+                        return
+
                     if route.request.headers.get("content-type"):
                         route.fulfill(status=mock_status,
                                       content_type=route.request.headers.get("content-type"),
@@ -590,16 +707,33 @@ def handle_route(route):
             mock_rule = None
             if route.request.resource_type == 'xhr' or route.request.resource_type == 'fetch':
                 mock_rule = mock_rules(route.request.url, request_mock_key_value)
+                if mock_rule is None and gr.get_value("mock_request_match_list") is not None:
+                    gr.get_value("mock_request_match_list").append(route.request.url)
             if mock_rule is not None:
                 log.info(
                     f"url:{route.request.url}===== match mock key:{mock_rule.get('key')} mock case "
                     f":{mock_rule.get('value')}===================")
                 mock_body = get_case_response_body(mock_rule.get("value"))
+                if mock_rule.get('key') == "ubtChecking":
+                    request_body = mock_body.get('flybirdsMockRequest')
+                    current_page_id = request_body.get("pageId")
+                    gr.set_value("current_page_id", current_page_id)
                 mock_status = 200
                 if mock_body:
                     if mock_body.get("flybirdsMockResponse") is not None or mock_body.get("status") is not None:
                         mock_status = mock_body.get("status", 200)
                         mock_body = mock_body.get("flybirdsMockResponse")
+
+                    if route.request.headers.get(
+                            'accept') is not None and 'text/event-stream' == route.request.headers.get(
+                        'accept'):
+                        route.fulfill(
+                            status=mock_status,
+                            content_type="text/event-stream;charset=UTF-8",
+                            headers=route.request.headers,
+                            body=bytes(mock_body, encoding="utf8"))
+                        return
+
                     if not isinstance(mock_body, str):
                         mock_body = json.dumps(mock_body)
                         route.fulfill(status=mock_status,
@@ -615,6 +749,8 @@ def handle_route(route):
                                       content_type="application/json",
                                       body=mock_body)
                     return
+            else:
+                log.info(f"url:{route.request.url}===== no match request mock=========================================")
 
         except Exception as mock_error:
             log.info("find mock info error", mock_error)
@@ -645,7 +781,12 @@ def handle_route(route):
             route.fulfill(status=200,
                           content_type="application/json;charset=utf-8",
                           body=mock_body)
+        else:
+            if gr.get_value("mock_request_match_list") is not None:
+                gr.get_value("mock_request_match_list").append(route.request.url)
     else:
+        if gr.get_value("mock_request_match_list") is not None:
+            gr.get_value("mock_request_match_list").append(route.request.url)
         route.continue_()
 
 
@@ -740,3 +881,48 @@ def get_operation(parsed_uri, request_body=None):
         if operation is not None:
             return operation
     return parsed_uri.path.split('/')[-1]
+
+
+def get_response_name(parsed_uri, request_body=None):
+    operation_module = gr.get_value("projectScript").custom_operation
+    if operation_module is not None and hasattr(operation_module, "get_response_name"):
+        get_operation_customer = getattr(operation_module, "get_response_name")
+        operation = get_operation_customer(parsed_uri, request_body)
+        if operation is not None:
+            return operation
+    return parsed_uri.path.split('/')[-1] + "_" + "response"
+
+
+def handle_dialog(dialog):
+    try:
+        if gr.get_value("current_page_dialog_action", None) is True:
+            log.info("dialog accept action happened")
+            dialog.accept()
+        elif gr.get_value("current_page_dialog_action", None) is False:
+            log.info("dialog dismiss action happened")
+            dialog.dismiss()
+        else:
+            log.info("dialog default dialog action is dismiss")
+            dialog.dismiss()
+    except Exception as e:
+        log.info("dialog default dialog action is dismiss")
+        dialog.dismiss()
+
+
+def handle_request_finished(response):
+    try:
+        if response.request.resource_type == 'xhr' or response.request.resource_type == 'fetch':
+            post_data = None
+            try:
+                post_data = response.request.post_data
+            except Exception as ex:
+                log.info("try to get post data from request", ex)
+            parsed_uri = urlparse(response.request.url)
+            operation = get_operation(parsed_uri, post_data)
+            response_body = response.text()
+            gr.get_value('network_cache_map', {})[f"{operation}_{response.request.network_key}"][
+                "response"]["data"] = response_body
+            gr.get_value('network_cache_map', {})[f"{operation}_{response.request.network_key}"]["response"][
+                "endTime"] = int(round(time.time() * 1000))
+    except Exception as e:
+        log.info("handle request finished failed", e)

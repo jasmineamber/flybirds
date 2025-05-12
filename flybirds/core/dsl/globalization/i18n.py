@@ -93,6 +93,9 @@ step_language = {
         "stop record": ["结束录屏"],
         "execute js[{param}]": ["执行js[{param}]"],
         "go to url[{param}]": ["跳转到[{param}]", "跳转页面到[{param}]"],
+        "set header [{name}] value[{value}]": ["设置header名称[{name}]的值为[{value}]"],
+        "set sessionStorage name[{name}] value[{value}]": ["设置sessionStorage名称[{name}]的值为[{value}]"],
+        "set localStorage name[{name}] value[{value}]": ["设置localStorage名称[{name}]的值为[{value}]"],
         "set cookie name[{name}] value[{value}] url[{url}]": ["设置cookie 名称[{name}] 值[{value}] 网址[{url}]"],
         "get cookie": ["获取cookie"],
         "get local storage": ["获取local storage"],
@@ -126,10 +129,10 @@ step_language = {
         "element[{selector}]property[{param2}]is {param3}": [
             "元素[{selector}]的属性[{param2}]为{param3}"
         ],
-         "element[{selector}]property[{param2}]include {param3}": [
+        "element[{selector}]property[{param2}]include {param3}": [
             "元素[{selector}]的属性[{param2}]包含{param3}"
         ],
-         "element[{selector}]property[{param2}]not include {param3}": [
+        "element[{selector}]property[{param2}]not include {param3}": [
             "元素[{selector}]的属性[{param2}]不包含{param3}"
         ],
         "mouse hover[{selector}]": ["鼠标悬浮[{selector}]"],
@@ -140,13 +143,14 @@ step_language = {
         "click ocr regional[{selector}]": ["点击区域[{selector}]"],
         "click image[{selector}]": ["点击图像[{selector}]"],
         "click position[{x},{y}]": ["点击屏幕位置[{x},{y}]"],
+        "if [{selector}] exist then click": ["如果[{selector}]存在则点击该元素"],
         "set web page with width[{width}] and height[{height}]": ["设置浏览器宽度[{width}]和高度[{height}]"],
         "in[{selector}]input[{param2}]": ["在[{selector}]中输入[{param2}]"],
         "in ocr[{selector}]input[{param2}]": ["在扫描文字[{selector}]中输入[{param2}]"],
         "clear [{selector}] and input[{param2}]": [
             "在[{selector}]中清空并输入[{param2}]"],
-         "clear input[{selector}]": [
-            "清空输入框[{selector}]"],    
+        "clear input[{selector}]": [
+            "清空输入框[{selector}]"],
         "element[{selector}]position not change in[{param2}]seconds": [
             "元素[{selector}]位置[{param2}]秒内未变动"
         ],
@@ -197,6 +201,7 @@ step_language = {
         "current page is [{param}]": ["当前页面是[{param}]"],
         "current page is not last page": ["当前页面已不是上一个指定页面"],
         "switch to target page title[{title}] url[{url}]": ["切换目标页面标题[{title}]链接[{url}]"],
+        "switch to latest page": ["切换至最新打开的页面"],
         "from [{selector}] select [{param2}]": ["在[{selector}]中选择[{param2}]"],
         "exist [{p_selector}] subNode [{c_selector}] element": [
             "存在[{p_selector}]的[{c_selector}]的元素"],
@@ -215,6 +220,9 @@ step_language = {
         "[{target_data_path}]": [
             "验证服务请求[{service}]与[{target_data_path}]一致",
             "验证服务请求[{service}]与json路径[{target_data_path}]一致"],
+        "compare service request [{service}] with json file "
+        "[{target_data_path}] with the exceptions removed": [
+            "验证服务请求[{service}]与json路径[{target_data_path}]去除除外项后完全一致"],
         "compare service request [{service}] with xml file "
         "[{target_data_xml_path}]": [
             "验证服务请求[{service}]与xml路径[{target_data_xml_path}]一致"],
@@ -225,6 +233,15 @@ step_language = {
         "is [{expect_value}]": [
             "验证服务[{service}]的请求参数[{target_json_path}]"
             "与[{expect_value}]一致"],
+        "service request [{service}] request parameter [{target_json_path}] is none": [
+            "验证服务[{service}]的请求参数[{target_json_path}]为空"],
+        "service request [{service}] string request parameter [{target_json_path}] "
+        "includes [{expect_value}]": [
+            "验证服务[{service}]的字符串请求参数[{target_json_path}]"
+            "包含[{expect_value}]"],
+        "service request [{service}] string request parameter [{target_json_path}] not includes [{expect_value}]": [
+            "验证服务[{service}]的字符串请求参数[{target_json_path}]"
+            "不包含[{expect_value}]"],
         "page not requested [{service}]": ["页面没有请求[{service}]"],
         "page requests some interfaces [{service}]": ["页面请求了接口[{service}]"],
         "wait interface [{service}] request finished": ["等待接口[{service}]请求结束"],
@@ -241,6 +258,28 @@ step_language = {
         "touch text[{selector}]": ["点触文本[{selector}]"],
         "click ele [{selector}] position[{x},{y}]": ["点击元素[{selector}]位置[{x},{y}]"],
         "open mock request service [{service}] match pathList [{path_list}] and bind mockCase[{mock_case_id}]": [
-            "开启服务[{service}]匹配请求报文路径[{path_list}]并绑定MockCase[{mock_case_id}]"]
+            "开启服务[{service}]匹配请求报文路径[{path_list}]并绑定MockCase[{mock_case_id}]"],
+        "exist page text[{selector}]": ["页面存在文案[{selector}]"],
+        "the element[{selector}]value is[{param2}]": ["元素[{selector}]的value为[{param2}]"],
+        "the element[{selector}]value contains[{param2}]": ["元素[{selector}]的value包含[{param2}]"],
+        "the element[{selector}]value not contains[{param2}]": ["元素[{selector}]的value不包含[{param2}]"],
+        "witch contain [{param1}] element [{selector}] value is[{param2}]": ["参数含有[{param1}]的元素[{selector}]的文案为[{"
+                                                                             "param2}]"],
+        "witch contain [{param1}] element [{selector}] value contain [{param2}]": ["参数含有[{param1}]的元素[{"
+                                                                                   "selector}]的文案包含[{param2}]"],
+        "contain [{param}] by [{selector}] exist": ["存在包含参数[{param}]的元素[{selector}]"],
+        "contain [{param}] by [{selector}] not exist": ["不存在包含参数[{param}]的元素[{selector}]"],
+        "the [{param}] contained by the element [{selector}] has attribute [{attr_name}] with value [{attr_value}]":
+            ["包含参数[{param}]的元素[{selector}]的属性[{attr_name}]值为[{attr_value}]"],
+        "the [{param}] contained by the element [{selector}] has attribute [{attr_name}] contain value [{attr_value}]":
+            ["包含参数[{param}]的元素[{selector}]的属性[{attr_name}]值包含[{attr_value}]"],
+        "the [{param}] contained by the element [{selector}] has attribute [{attr_name}] not contain value [{"
+        "attr_value}]":
+            ["包含参数[{param}]的元素[{selector}]的属性[{attr_name}]值不包含[{attr_value}]"],
+        "the [{param}] contained by the element [{selector}] element value is [{attr_value}]":
+            ["包含参数[{param}]的元素[{selector}]的value为[{attr_value}]"],
+        "click[{selector}] and accept dialog": ["点击[{selector}]并接受弹窗"],
+        "click[{selector}] and cancel dialog": ["点击[{selector}]并取消弹窗"],
+        "upload image to element[{selector}]": ["上传图片到元素[{selector}]"]
     },
 }

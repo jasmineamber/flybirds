@@ -11,7 +11,7 @@ from flybirds.core.plugin.plugins.default.step.record import \
     stop_screen_record
 from flybirds.core.plugin.plugins.default.web.interception import \
     Interception as request_op
-from flybirds.core.exceptions import FlybirdsException
+from flybirds.core.exceptions import FlybirdsException, ErrorName
 
 from flybirds.core.global_context import GlobalContext
 
@@ -73,7 +73,7 @@ class Step:
         # If the target page is not found, log an error message
         else:
             message = f'Url or title could not match any tab page in this browser.'
-            raise FlybirdsException(message)
+            raise FlybirdsException(message, error_name=ErrorName.PageNotFoundError)
 
         # Bring the target page to the front and return its URL
         target_url = target.url
@@ -82,6 +82,22 @@ class Step:
         # need to fix plugin_ele and plugin_page, both pages mount page objects
         ele.page = target
         page.page = target
+
+    @classmethod
+    def switch_to_latest_page(cls, context):
+        # Get the current page from global registry
+        page = gr.get_value("plugin_page")
+
+        # Get latestPage from the current page's context
+        pages = page.context.pages
+
+        page_count = len(pages)
+        latest_page = pages[page_count - 1]
+
+        latest_page.bring_to_front()
+        ele = gr.get_value("plugin_ele")
+        ele.page = latest_page
+        page.page = latest_page
 
     @classmethod
     def return_pre_page(cls, context):
@@ -93,11 +109,15 @@ class Step:
         page = gr.get_value("plugin_page")
         page.page_go_forward(context)
 
-
     @classmethod
     def sleep(cls, context, param):
         page = gr.get_value("plugin_page")
         page.sleep(context, param)
+
+    @classmethod
+    def add_header(cls, context, name, value):
+        page = gr.get_value("plugin_page")
+        page.add_header(context, name, value)
 
     @classmethod
     def add_cookies(cls, context, name, value, url):
@@ -110,9 +130,19 @@ class Step:
         page.get_cookie(context)
 
     @classmethod
+    def add_local_storage(cls, context, name, value):
+        page = gr.get_value("plugin_page")
+        page.add_local_storage(context, name, value)
+
+    @classmethod
     def get_local_storage(cls, context):
         page = gr.get_value("plugin_page")
         page.get_local_storage(context)
+
+    @classmethod
+    def add_session_storage(cls, context, name, value):
+        page = gr.get_value("plugin_page")
+        page.add_session_storage(context, name, value)
 
     @classmethod
     def get_session_storage(cls, context):
@@ -159,6 +189,11 @@ class Step:
         ele.ele_click(context, selector)
 
     @classmethod
+    def click_exist_param(cls, context, selector):
+        ele = gr.get_value("plugin_ele")
+        ele.click_exist_param_web(context, selector)
+
+    @classmethod
     def click_text(cls, context, selector):
         ele = gr.get_value("plugin_ele")
         ele.click_text(context, selector)
@@ -184,6 +219,11 @@ class Step:
         ele.find_text(context, selector)
 
     @classmethod
+    def wait_page_text_exist(cls, context, selector):
+        ele = gr.get_value("plugin_ele")
+        ele.find_page_text(context, selector)
+
+    @classmethod
     def text_not_exist(cls, context, selector):
         ele = gr.get_value("plugin_ele")
         ele.find_no_text(context, selector)
@@ -197,6 +237,85 @@ class Step:
     def exist_ele(cls, context, selector):
         ele = gr.get_value("plugin_ele")
         ele.ele_exist(context, selector)
+
+    @classmethod
+    def ele_exist_value(cls, context, selector, param):
+        ele = gr.get_value("plugin_ele")
+        ele.ele_exist_value(context, selector, param)
+
+    @classmethod
+    def ele_contain_value(cls, context, selector, param):
+        ele = gr.get_value("plugin_ele")
+        ele.ele_contain_value(context, selector, param)
+
+    @classmethod
+    def ele_not_contain_value(cls, context, selector, param):
+        ele = gr.get_value("plugin_ele")
+        ele.ele_not_contain_value(context, selector, param)
+
+    @classmethod
+    def ele_contain_param_value(cls, context, param1, selector, param2):
+        params = param1.split(',')
+        for param in params:
+            selector = selector.replace('{}', param, 1)
+        ele = gr.get_value("plugin_ele")
+        ele.ele_text_equal(context, selector, param2)
+
+    @classmethod
+    def ele_with_param_value_equal(cls, context, param, selector, attr_value):
+        params = param.split(',')
+        for param in params:
+            selector = selector.replace('{}', param, 1)
+        ele = gr.get_value("plugin_ele")
+        ele.ele_with_param_value_equal_attr(context, selector, attr_value)
+
+    @classmethod
+    def ele_contain_param_contain_value(cls, context, param1, selector, param2):
+        params = param1.split(',')
+        for param in params:
+            selector = selector.replace('{}', param, 1)
+        ele = gr.get_value("plugin_ele")
+        ele.ele_text_include(context, selector, param2)
+
+    @classmethod
+    def ele_contain_param_exist(cls, context, param1, selector):
+        params = param1.split(',')
+        for param in params:
+            selector = selector.replace('{}', param, 1)
+        ele = gr.get_value("plugin_ele")
+        ele.ele_exist(context, selector)
+
+    @classmethod
+    def ele_contain_param_not_exist(cls, context, param1, selector):
+        params = param1.split(',')
+        for param in params:
+            selector = selector.replace('{}', param, 1)
+        ele = gr.get_value("plugin_ele")
+        ele.ele_not_exist(context, selector)
+
+    @classmethod
+    def ele_contain_param_attr_exist(cls, context, param, selector, attr_name, attr_value):
+        params = param.split(',')
+        for param in params:
+            selector = selector.replace('{}', param, 1)
+        ele = gr.get_value("plugin_ele")
+        ele.is_ele_attr_equal(context, selector, attr_name, attr_value)
+
+    @classmethod
+    def ele_contain_param_attr_contain(cls, context, param, selector, attr_name, attr_value):
+        params = param.split(',')
+        for param in params:
+            selector = selector.replace('{}', param, 1)
+        ele = gr.get_value("plugin_ele")
+        ele.is_ele_attr_container(context, selector, attr_name, attr_value)
+
+    @classmethod
+    def ele_contain_param_attr_not_contain(cls, context, param, selector, attr_name, attr_value):
+        params = param.split(',')
+        for param in params:
+            selector = selector.replace('{}', param, 1)
+        ele = gr.get_value("plugin_ele")
+        ele.is_ele_attr_not_container(context, selector, attr_name, attr_value)
 
     @classmethod
     def wait_ele_exit(cls, context, selector):
@@ -268,9 +387,18 @@ class Step:
         ele.find_full_screen_slide(context, None, selector)
 
     @classmethod
+    def upload_image_to_ele(cls, context, selector):
+        """
+        from {param1} find[{param2}]element
+        """
+        ele = gr.get_value("plugin_ele")
+        ele.upload_image(context, selector)
+
+    @classmethod
     def ele_attr_equal(cls, context, selector, param2, param3):
         ele = gr.get_value("plugin_ele")
         ele.is_ele_attr_equal(context, selector, param2, param3)
+
     @classmethod
     def ele_attr_container(cls, context, selector, param2, param3):
         ele = gr.get_value("plugin_ele")
@@ -295,7 +423,6 @@ class Step:
     def text_attr_not_container(cls, context, selector, param2, param3):
         ele = gr.get_value("plugin_ele")
         ele.is_text_attr_not_container(context, selector, param2, param3)
-
 
     @classmethod
     def find_child_from_parent(cls, context, p_selector, c_selector):
@@ -338,9 +465,11 @@ class Step:
     @staticmethod
     def clear_all_request_body(context):
         request_op.clear_interception_request_body()
+
     @staticmethod
     def clear_all_request_record(context):
         request_op.clear_all_request_record()
+
     # -------------------------------------------------------------------------
     # request service listening
     # -------------------------------------------------------------------------
@@ -361,8 +490,12 @@ class Step:
     # -------------------------------------------------------------------------
     @staticmethod
     def request_compare_from_path(context, operation, target_data_path):
-        request_op.request_compare(operation, target_data_path)
+        request_op.request_compare(operation, target_data_path, ['_removed', '_changed'])
 
+    @staticmethod
+    def request_compare_from_path_exceptions_removed(context, operation, target_data_path):
+        request_op.request_compare(operation, target_data_path, ['_removed', '_changed', '_add'])
+   
     @staticmethod
     def page_not_requested(context, operation):
         request_op.page_not_requested(operation)
@@ -385,6 +518,22 @@ class Step:
                               expect_value):
         request_op.request_compare_value(operation, target_json_path,
                                          expect_value)
+
+    @staticmethod
+    def request_compare_value_is_none(context, operation, target_json_path):
+        request_op.request_compare_value_is_none(operation, target_json_path,)
+
+    @staticmethod
+    def request_compare_includes_value(context, operation, target_json_path,
+                                       expect_value):
+        request_op.request_compare_includes_value(operation, target_json_path,
+                                                  expect_value)
+
+    @staticmethod
+    def request_compare_not_includes_value(context, operation, target_json_path,
+                                           expect_not_contain_value):
+        request_op.request_compare_not_includes_value(operation, target_json_path,
+                                                      expect_not_contain_value)
 
     @staticmethod
     def picture_compare_from_path(context, target_element, compared_picture_path):
@@ -435,3 +584,13 @@ class Step:
             request_mock_key_value = []
             GlobalContext.set_global_cache("request_mock_request_key_value", request_mock_key_value)
         request_op.open_web_request_mock(service_str, mock_case_id_str, path_list, request_mock_key_value)
+
+    @staticmethod
+    def close_dialog(context):
+        ele = gr.get_value("plugin_ele")
+        ele.close_dialog(context)
+
+    @staticmethod
+    def accept_dialog(context):
+        ele = gr.get_value("plugin_ele")
+        ele.accept_dialog(context)

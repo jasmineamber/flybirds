@@ -90,8 +90,16 @@ class ScreenRecord:
         cmd = "{} -s {} shell screenrecord --help".format(airtest_adb_path,
                                                           device_id)
         proc = cmd_helper.create_sub_process(cmd)
-        proc.communicate(timeout=10)
-        proc_code = proc.poll()
+        try:
+            proc.communicate(timeout=10)
+            proc_code = proc.poll()
+        except Exception as e:
+            log.error(
+                "Screen record support {} not end in 10 seconds, innerError:{}".format(
+                    cmd, str(e)
+                )
+            )
+            proc_code = 1
 
         if int(proc_code) == 0:
             self.support = True
@@ -301,8 +309,11 @@ class ScreenRecord:
         if self.use_airtest_record:
             if self.airtest_version_high:
                 if self.airtest_record_mode == 'ffmpeg':
-                    if self.output_ffmpeg_file is not None:
-                        os.remove(self.output_ffmpeg_file)
+                    try:
+                        if self.output_ffmpeg_file is not None:
+                            os.remove(self.output_ffmpeg_file)
+                    except Exception as e:
+                        pass
                     return
                 elif self.airtest_record_mode == 'yosemite':
                     if self.dev.yosemite_recorder.recording_file is not None:
@@ -406,11 +417,21 @@ def link_record(scenario, step_index):
         )
         scenario.description.append(data)
         src_path = os.path.join(current_screen_dir, file_name)
+        gr.set_value("record_url", src_path)
         log.info(
             f'default screen_record [link_record] src_path: {src_path}')
-        screen_record.copy_record(src_path)
-        if gr.get_platform().lower() == "android":
-            screen_record.crop_record(src_path)
+
+        try:
+            screen_record.copy_record(src_path)
+            if gr.get_platform().lower() == "android":
+                screen_record.crop_record(src_path)
+        except Exception as e:
+            log.error(
+                "Screen record copy error "
+                "innerError:{}".format(
+                    str(e)
+                )
+            )
 
         try:
             g_context.set_global_cache('current_record_path', src_path)
