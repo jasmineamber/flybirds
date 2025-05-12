@@ -305,7 +305,11 @@ def process_loop_block(report_dir, rerun_feature_index, sum_count, fail_count,
                                     continue
                                 sum_count += 1
                                 if scenario["status"] == "failed" or (feature["status"] == "failed" and need_rerun_feature):
-                                    fail_count += 1
+                                    if need_rerun_feature:
+                                        # 用例中多个步骤失败只计一次失败次数，方便need_rerun_feature的设置
+                                        fail_count = 1
+                                    else:
+                                        fail_count += 1
                                     if isinstance(scenario["tags"], list):
                                         cur_tags = ""
                                         for tag_item in scenario["tags"]:

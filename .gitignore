@@ -13,3 +13,8 @@ report
 .DS_Store
 /venv/
 multiprocessing_features.log
+
+config/
+features/
+pscript/
+videos/
