@@ -279,6 +279,8 @@ def process_loop_block(report_dir, rerun_feature_index, sum_count, fail_count,
                 if isinstance(report_json, list):
                     # 1. to find need to be rerun case
                     for feature in report_json:
+                        failed_feature_has_count = False
+                        
                         cur_feature_array = get_init_feature_array_tags(
                             rerun_feature_index, feature.get("language"),
                             feature.get("tags")
@@ -307,7 +309,9 @@ def process_loop_block(report_dir, rerun_feature_index, sum_count, fail_count,
                                 if scenario["status"] == "failed" or (feature["status"] == "failed" and need_rerun_feature):
                                     if need_rerun_feature:
                                         # 用例中多个步骤失败只计一次失败次数，方便need_rerun_feature的设置
-                                        fail_count = 1
+                                        if not failed_feature_has_count:
+                                            failed_feature_has_count = True
+                                            fail_count = +1
                                     else:
                                         fail_count += 1
                                     if isinstance(scenario["tags"], list):
