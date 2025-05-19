@@ -311,7 +311,7 @@ def process_loop_block(report_dir, rerun_feature_index, sum_count, fail_count,
                                         # 用例中多个步骤失败只计一次失败次数，方便need_rerun_feature的设置
                                         if not failed_feature_has_count:
                                             failed_feature_has_count = True
-                                            fail_count = +1
+                                            fail_count += 1
                                     else:
                                         fail_count += 1
                                     if isinstance(scenario["tags"], list):
