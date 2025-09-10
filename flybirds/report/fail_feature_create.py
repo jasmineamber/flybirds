@@ -281,10 +281,6 @@ def process_loop_block(report_dir, rerun_feature_index, sum_count, fail_count,
                     for feature in report_json:
                         failed_feature_has_count = False
                         
-                        cur_feature_array = get_init_feature_array_tags(
-                            rerun_feature_index, feature.get("language"),
-                            feature.get("tags")
-                        )
                         rerun_feature_location = feature["location"]
                         rerun_match_obj = re.match(
                             r"(.*\/)*([^.]+).feature", rerun_feature_location
@@ -300,6 +296,12 @@ def process_loop_block(report_dir, rerun_feature_index, sum_count, fail_count,
                         )
                         if rerun_match_obj is not None:
                             rerun_feature_name = rerun_match_obj.group(2)
+                        
+                        cur_feature_array = get_init_feature_array_tags(
+                            rerun_feature_name,
+                            rerun_feature_index, feature.get("language"),
+                            feature.get("tags")
+                        )
                         log.info(f"rerun_feature_name: {rerun_feature_name}")
                         if isinstance(feature.get("elements", None), list):
                             for scenario in feature["elements"]:
@@ -415,7 +417,7 @@ def get_init_feature_array(index, language):
     return feature_des
 
 
-def get_init_feature_array_tags(index, language, tags):
+def get_init_feature_array_tags(name, index, language, tags):
     """
     generate failed info
     """
@@ -429,7 +431,7 @@ def get_init_feature_array_tags(index, language, tags):
         feature_des.append(f"{temp_tag_str}\n")
     f_l = lge.parse_keyword("feature", language)
     r_f = lge.parse_glb_str("rerun failed scenario", language)
-    feature_des.append(f"{f_l}:{r_f}{index}\n\n")
+    feature_des.append(f"{f_l}:{name}_{r_f}{index}\n\n")
 
     return feature_des
 
