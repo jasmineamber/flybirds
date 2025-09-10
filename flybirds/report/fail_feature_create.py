@@ -279,7 +279,12 @@ def process_loop_block(report_dir, rerun_feature_index, sum_count, fail_count,
                 if isinstance(report_json, list):
                     # 1. to find need to be rerun case
                     for feature in report_json:
-                        failed_feature_has_count = False
+                        # 重试整个feature时, 以feature为单位计算总数
+                        if need_rerun_feature:
+                            sum_count += 1
+                            # 重试整个feature时, 以feature为单位计算失败数量
+                            if feature["status"] == "failed":
+                                fail_count += 1
                         
                         rerun_feature_location = feature["location"]
                         rerun_match_obj = re.match(
@@ -307,14 +312,11 @@ def process_loop_block(report_dir, rerun_feature_index, sum_count, fail_count,
                             for scenario in feature["elements"]:
                                 if scenario["type"] == "background":
                                     continue
-                                sum_count += 1
+                                if not need_rerun_feature:
+                                    sum_count += 1
+                                # 重试整个feature时, 将所有场景加入重试
                                 if scenario["status"] == "failed" or (feature["status"] == "failed" and need_rerun_feature):
-                                    if need_rerun_feature:
-                                        # 用例中多个步骤失败只计一次失败次数，方便need_rerun_feature的设置
-                                        if not failed_feature_has_count:
-                                            failed_feature_has_count = True
-                                            fail_count += 1
-                                    else:
+                                    if not need_rerun_feature:
                                         fail_count += 1
                                     if isinstance(scenario["tags"], list):
                                         cur_tags = ""
